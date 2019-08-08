@@ -3,6 +3,10 @@ import sys
 import io
 import logging
 import hashlib
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+
 from PIL import Image
 from PIL import ImageColor
 
@@ -10,9 +14,33 @@ from PIL import ImageColor
 logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',level=logging.DEBUG)
 
 def main():
-    pf_pdf = PathfinderPDF('C:\\Users\\steph\\OneDrive\\Pathfinder\\PF2 Rulebooks\\AP Hellknight Hill\\PZO90145E.pdf')
+    root = tk.Tk()
+    #tk.ttk.Style().theme_use('alt')
+    logging.debug(f'tkinter theme: {tk.ttk.Style().theme_use()}')
+    logging.debug(f'tkinter themes: {tk.ttk.Style().theme_names()}')
 
-    pf_pdf.SaveImages()
+
+    canvas = tk.Canvas(root)
+    canvas.pack()
+
+    frame = tk.Frame(root, bg='GRAY')
+    frame.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.5)
+    
+    pdf_entry = ttk.Entry(frame)
+    pdf_entry.grid(column=0, row=0, padx=1, pady=1)
+    button = ttk.Button(frame, text="Open", command=lambda: logging.debug('clicked'))
+    button.grid(column=1, row=0, columnspan=2, padx=1, pady=1)
+
+    #button.pack()
+
+    #label = tk.Label(frame, text='This is a label', bg='yellow')
+    #label.pack()
+
+
+    root.mainloop()
+    #pf_pdf = PathfinderPDF('C:\\Users\\Stephen\\OneDrive\\Pathfinder\\PF2 Rulebooks\\AP Hellknight Hill\\PZO90145E.pdf')
+
+    #pf_pdf.SaveImages()
 
 class PathfinderPDF:
     def __init__(self, pdfPath):
