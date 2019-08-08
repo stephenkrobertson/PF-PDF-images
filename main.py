@@ -15,35 +15,60 @@ logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',level=loggin
 
 def main():
     root = tk.Tk()
-    #tk.ttk.Style().theme_use('alt')
-    logging.debug(f'tkinter theme: {tk.ttk.Style().theme_use()}')
-    logging.debug(f'tkinter themes: {tk.ttk.Style().theme_names()}')
-
-
-    canvas = tk.Canvas(root)
-    canvas.pack()
-
-    frame = tk.Frame(root, bg='GRAY')
-    frame.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.5)
-    
-    pdf_entry = ttk.Entry(frame)
-    pdf_entry.grid(column=0, row=0, padx=1, pady=1)
-    button = ttk.Button(frame, text="Open", command=lambda: logging.debug('clicked'))
-    button.grid(column=1, row=0, columnspan=2, padx=1, pady=1)
-
-    #button.pack()
-
-    #label = tk.Label(frame, text='This is a label', bg='yellow')
-    #label.pack()
-
-
+    UIController = PFPDF_UIController(root)    
     root.mainloop()
+
     #pf_pdf = PathfinderPDF('C:\\Users\\Stephen\\OneDrive\\Pathfinder\\PF2 Rulebooks\\AP Hellknight Hill\\PZO90145E.pdf')
 
     #pf_pdf.SaveImages()
 
+class PFPDF_UIController:
+    def __init__(self, master):
+        self.master = master
+        master.title('Pathfinder PDF Image Extractor')
+        master.geometry('400x100')
+
+        #tk.ttk.Style().theme_use('alt')
+        logging.debug(f'tkinter theme: {tk.ttk.Style().theme_use()}')
+        logging.debug(f'tkinter themes: {tk.ttk.Style().theme_names()}')
+
+        self.frame = tk.Frame(master, bg='GRAY')
+        self.frame.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.98)
+        
+        # First row
+        self.openPdfEntry = ttk.Entry(self.frame)
+        self.openPdfEntry.grid(column=0, row=0,sticky='nesw', padx=1, pady=1)
+        self.openPdfButton = ttk.Button(self.frame, text="Open", command=self.OpenFile)
+        self.openPdfButton.grid(column=1, row=0, padx=1, pady=1)
+
+        # Second row
+        self.startProcessing = ttk.Button(self.frame, text="Start", command=self.ProcessPDF)
+        self.startProcessing.grid(column=0, row=1, sticky='nesw', columnspan=2, padx=1, pady=1)
+
+        self.frame.columnconfigure(0, weight=1)
+
+        #button.pack()
+
+        #label = tk.Label(frame, text='This is a label', bg='yellow')
+        #label.pack()(
+    def OpenFile(self):
+        fd = filedialog.askopenfilename(filetypes=[("pdf files","*.pdf")])
+        logging.debug(f'Opened {fd}')
+
+        self.openPdfEntry.delete(0, 'end')
+        self.openPdfEntry.insert(0, fd)
+
+        self.pdfPath = fd
+        
+        return fd
+    
+    def ProcessPDF(self):
+        if self.pdfPath:
+            pf_pdf = PathfinderPDF(self.pdfPath)
+            pf_pdf.SaveImages()
+
 class PathfinderPDF:
-    def __init__(self, pdfPath):
+    def __init__(self, pdfPath, **kwargs):
         logging.info(f'Importing PDF: {pdfPath}')
         self.pdf = PyPDF3.PdfFileReader(pdfPath)
 
@@ -51,6 +76,9 @@ class PathfinderPDF:
         self.min_size = 150
         # Initialize empty list for images
         self.images = []
+
+        if 'progressBar' in kwargs:
+            self.progressBar = kwargs['progressBar']
 
         # Some debug info
         logging.debug(f'PDF Encrypted   : {self.pdf.isEncrypted}')
