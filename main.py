@@ -4,6 +4,7 @@ import io
 import logging
 import hashlib
 import tkinter as tk
+import threading
 from tkinter import ttk
 from tkinter import filedialog
 
@@ -22,11 +23,19 @@ def main():
 
     #pf_pdf.SaveImages()
 
+def ProcessPDF(uic):
+    if uic.pdfPath:
+        pf_pdf = PathfinderPDF(uic.pdfPath)
+        pf_pdf.SaveImages()
+    
+    
 class PFPDF_UIController:
     def __init__(self, master):
         self.master = master
+        self.pdfPath = ''
+
         master.title('Pathfinder PDF Image Extractor')
-        master.geometry('400x100')
+        master.geometry('400x57')
 
         #tk.ttk.Style().theme_use('alt')
         logging.debug(f'tkinter theme: {tk.ttk.Style().theme_use()}')
@@ -35,15 +44,19 @@ class PFPDF_UIController:
         self.frame = tk.Frame(master, bg='GRAY')
         self.frame.place(relx=0.01, rely=0.01, relwidth=0.98, relheight=0.98)
         
-        # First row
+        # First row - select pdf box
         self.openPdfEntry = ttk.Entry(self.frame)
         self.openPdfEntry.grid(column=0, row=0,sticky='nesw', padx=1, pady=1)
         self.openPdfButton = ttk.Button(self.frame, text="Open", command=self.OpenFile)
         self.openPdfButton.grid(column=1, row=0, padx=1, pady=1)
 
-        # Second row
-        self.startProcessing = ttk.Button(self.frame, text="Start", command=self.ProcessPDF)
+        # Second row - Start button
+        self.startProcessing = ttk.Button(self.frame, text="Start", command=lambda: ProcessPDF(self))
         self.startProcessing.grid(column=0, row=1, sticky='nesw', columnspan=2, padx=1, pady=1)
+
+        # Third row - Progress Bar
+        #self.progressBar = ttk.Progressbar(self.frame, orient='horizontal', mode='determinate')
+        #self.progressBar.grid(column=0, row=2, sticky='nesw', columnspan=2, padx=1, pady=1)
 
         self.frame.columnconfigure(0, weight=1)
 
@@ -62,10 +75,6 @@ class PFPDF_UIController:
         
         return fd
     
-    def ProcessPDF(self):
-        if self.pdfPath:
-            pf_pdf = PathfinderPDF(self.pdfPath)
-            pf_pdf.SaveImages()
 
 class PathfinderPDF:
     def __init__(self, pdfPath, **kwargs):
@@ -73,7 +82,7 @@ class PathfinderPDF:
         self.pdf = PyPDF3.PdfFileReader(pdfPath)
 
         # Initialize min image size (KB)
-        self.min_size = 150
+        self.min_size = 50
         # Initialize empty list for images
         self.images = []
 
@@ -90,7 +99,7 @@ class PathfinderPDF:
     
     def GetImages(self):
 
-        for page_num, page in enumerate(self.pdf.pages):
+        for page_num, page in enumerate(self.pdf.pages, 1):
             #print(page.getContents())
             #print(page['/Resources'])
             if (page_num < 1024):
@@ -108,7 +117,7 @@ class PathfinderPDF:
                                     # TODO double check this 'L' is probably not right type
                                     img = Image.frombytes('L', size, data)
                                     #img = Image.open(io.BytesIO(data))
-                                    self.AppendImage(PathfinderImage(img, '.jpg'))
+                                    self.AppendImage(PathfinderImage(img, 'jpeg', page_num))
                                     #img.save(obj[1:] + ".jpg")
                                 elif xObject[obj]['/Filter'] == '/DCTDecode':
                                     #img = Image.frombytes('L', size, data, 'raw', 'L')
@@ -131,13 +140,13 @@ class PathfinderPDF:
                                         #img_combined.save(obj[1:] + "-combined.png")
 
                                         logging.debug(f'Storing image.. Page: {page_num}, Image: {obj[1:]}. Type: /DCTDecode with Mask')
-                                        self.AppendImage(PathfinderImage(img_combined, '.png'))
+                                        self.AppendImage(PathfinderImage(img_combined, 'png', page_num))
 
                                     # If no underlying mask is found, save base image
                                     else:
                                         #img.save(obj[1:] + ".jpg")
                                         logging.debug(f'Storing image.. Page: {page_num}, Image: {obj[1:]}. Type: /DCTDecode')
-                                        self.AppendImage(PathfinderImage(img, '.jpg'))
+                                        self.AppendImage(PathfinderImage(img, 'jpeg', page_num))
      
                                 else:
                                     logging.warning(f'UNKNOWN TYPE: {xObject[obj]}')
@@ -160,16 +169,23 @@ class PathfinderPDF:
     def SaveImages(self):
         logging.info('Image saving starting..')
 
+        enumerationTracker = {}
         for img_num, img in enumerate(self.images):
-            logging.debug(f'Saving image: images/{img_num}{img.extension}')
-            img.image.save(f'images/{img_num}{img.extension}')
+            if img.page_num not in enumerationTracker:
+                enumerationTracker[img.page_num] = 1
+
+            logging.debug(f'Saving image: images/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
+            img.image.save(f'images/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
+
+            enumerationTracker[img.page_num]+=1
 
         logging.info('Image saving complete.')
 
 class PathfinderImage:
-    def __init__(self, image, extension):
+    def __init__(self, image, extension, page_num):
         self.image = image
         self.extension = extension
+        self.page_num = page_num
     
     def __eq__(self, other):
         if self.image == other.image and self.extension == other.extension:
@@ -178,7 +194,11 @@ class PathfinderImage:
             return False
 
     def __len__(self):
-        return sys.getsizeof(self.image.tobytes())
+        #return sys.getsizeof(self.image.tobytes())
+        img_file = io.BytesIO()
+        self.image.save(img_file, format=self.extension)
+        logging.debug(f'Image size: {img_file.tell()}')
+        return img_file.tell()
 
 
 if __name__=="__main__":
