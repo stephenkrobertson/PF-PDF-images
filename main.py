@@ -1,6 +1,7 @@
 import PyPDF3
 import sys
 import io
+import os
 import logging
 import hashlib
 import tkinter as tk
@@ -80,6 +81,7 @@ class PathfinderPDF:
     def __init__(self, pdfPath, **kwargs):
         logging.info(f'Importing PDF: {pdfPath}')
         self.pdf = PyPDF3.PdfFileReader(pdfPath)
+        self.save_path = os.path.dirname(pdfPath) +'/images-' + os.path.basename(pdfPath).strip('.pdf')
 
         # Initialize min image size (KB)
         self.min_size = 50
@@ -168,14 +170,15 @@ class PathfinderPDF:
     
     def SaveImages(self):
         logging.info('Image saving starting..')
+        os.mkdir(self.save_path)
 
         enumerationTracker = {}
         for img_num, img in enumerate(self.images):
             if img.page_num not in enumerationTracker:
                 enumerationTracker[img.page_num] = 1
 
-            logging.debug(f'Saving image: images/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
-            img.image.save(f'images/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
+            logging.debug(f'Saving image: {self.save_path}/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
+            img.image.save(f'{self.save_path}/{img.page_num}-{enumerationTracker[img.page_num]}.{img.extension}')
 
             enumerationTracker[img.page_num]+=1
 
